@@ -41,6 +41,20 @@ void check_error(int status) {
 
 void ce(int s) {check_error(s);}
 
+void metadata(mpv_handle* ctx) {
+	mpv_node result;
+	ce(mpv_get_property(ctx, "metadata", MPV_FORMAT_NODE, &result.u.list));
+	printf("--------------NODEMAP------");
+	for (int i = 0; i < result.u.list->num; i++) {
+		printf("%s: %s\n", result.u.list->keys[i], result.u.list->values[i].u.string);
+	} printf("-----------endNODEMAP---------");
+
+    char* res;
+    ce(mpv_get_property(ctx, "media-title", MPV_FORMAT_STRING, &res));
+    printf("title: %s\n", res);
+}
+
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("pass a single media file as argument\n");
@@ -53,39 +67,27 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Enable default key bindings, so the user can actually interact with
-    // the player (and e.g. close the window).
-    //check_error(mpv_set_option_string(ctx, "input-default-bindings", "yes"));
-    //mpv_set_option_string(ctx, "input-vo-keyboard", "yes");
     int val = 1;
     ce(mpv_set_option(ctx, "osc", MPV_FORMAT_FLAG, &val));
     ce(mpv_initialize(ctx));
     const char *cmd[] = {"loadfile", argv[1], NULL};
     ce(mpv_command(ctx, cmd));
 
-    // Let it play, and wait until the user quits.
     while (1) {
         mpv_event *event = mpv_wait_event(ctx, 10000);
+        mpv_observe_property(ctx, event->reply_userdata, "metadata", MPV_FORMAT_NODE_MAP);
         printf("event: %s\n", mpv_event_name(event->event_id));
         if (event->event_id == MPV_EVENT_SHUTDOWN) break;
+
         if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
-        //mpv_node* val;
-        //ce(mpv_get_property(ctx, "metadata", MPV_FORMAT_NODE_MAP, &val->u.list));
+        	metadata(ctx);
+        }
 
-        char* res;
-        ce(mpv_get_property(ctx, "media-title", MPV_FORMAT_STRING, &res));
-        printf("title: %s\n", res);
+        if (event->reply_userdata == MPV_EVENT_PROPERTY_CHANGE) {
+        	metadata(ctx);
+        }
 
-		mpv_node result;
-		ce(mpv_get_property(ctx, "metadata", MPV_FORMAT_NODE, &result.u.list));
-		if (result.format == MPV_FORMAT_NODE_MAP) {
-			for (int i = 0; i < result.u.list->num; i++) {
-				printf("%s: %s\n", result.u.list->keys[i], result.u.list->values[i].u.string);
-			}
-		}
-
-         }
-       }
+	}
 
     mpv_terminate_destroy(ctx);
     return 0;
