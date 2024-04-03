@@ -44,10 +44,10 @@ void ce(int s) {check_error(s);}
 void metadata(mpv_handle* ctx) {
 	mpv_node result;
 	ce(mpv_get_property(ctx, "metadata", MPV_FORMAT_NODE, &result.u.list));
-	printf("--------------NODEMAP------");
+	printf("--------------NODEMAP---------\n");
 	for (int i = 0; i < result.u.list->num; i++) {
 		printf("%s: %s\n", result.u.list->keys[i], result.u.list->values[i].u.string);
-	} printf("-----------endNODEMAP---------");
+	} printf("-----------endNODEMAP---------\n");
 
     char* res;
     ce(mpv_get_property(ctx, "media-title", MPV_FORMAT_STRING, &res));
@@ -72,19 +72,35 @@ int main(int argc, char *argv[]) {
     ce(mpv_initialize(ctx));
     const char *cmd[] = {"loadfile", argv[1], NULL};
     ce(mpv_command(ctx, cmd));
+    //uint8_t uval = 0;
+    mpv_event *event = mpv_wait_event(ctx, 0);
+    //printf("%s\n", mpv_event_name(event->event_id));
+    int metadata_is_observed = 0;
 
     while (1) {
-        mpv_event *event = mpv_wait_event(ctx, 10000);
-        mpv_observe_property(ctx, event->reply_userdata, "metadata", MPV_FORMAT_NODE_MAP);
-        printf("event: %s\n", mpv_event_name(event->event_id));
+        //if(uval == 500) uval = 0;
+        event = mpv_wait_event(ctx, 1000);
+        //printf("event: %s\n", mpv_event_name(event->event_id));
         if (event->event_id == MPV_EVENT_SHUTDOWN) break;
-
-        if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
-        	metadata(ctx);
+        if (event->event_id == MPV_EVENT_END_FILE) return 1;
+        if(event->event_id == MPV_EVENT_PLAYBACK_RESTART && !metadata_is_observed) {
+        	mpv_observe_property(ctx, 0
+        		//event->reply_userdata
+        		, "metadata", MPV_FORMAT_NONE);
+			//printf("set to observe\n");
+			metadata_is_observed = 1;
         }
-
-        if (event->reply_userdata == MPV_EVENT_PROPERTY_CHANGE) {
+        //if (uval == 0) {
+        printf("event: %s\n", mpv_event_name(event->event_id));//}
+        //uval++;
+        //printf("%d", uval);
+/*        if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
         	metadata(ctx);
+        }*/
+
+        if (event->event_id == MPV_EVENT_PROPERTY_CHANGE) {
+        	metadata(ctx);
+        	printf("property crhanged\n");
         }
 
 	}
